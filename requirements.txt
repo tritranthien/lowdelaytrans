@@ -1,0 +1,53 @@
+# Core Deep Learning Frameworks
+torch>=2.5.0
+torchvision>=0.20.0
+torchaudio>=2.5.0
+
+# TensorRT (CUDA 12.1 compatible)
+tensorrt>=10.0.0
+nvidia-tensorrt>=10.0.0
+
+# NVIDIA NeMo for ASR
+nemo_toolkit[asr]>=1.23.0
+omegaconf>=2.3.0
+
+# Translation & NLP
+transformers>=4.40.0
+sentencepiece>=0.2.0
+sacremoses>=0.1.0
+
+# Text-to-Speech
+TTS>=0.22.0
+espnet>=202301
+espnet_model_zoo>=0.1.7
+
+# Audio Processing
+sounddevice>=0.4.6
+soundfile>=0.12.1
+librosa>=0.10.1
+pyaudio>=0.2.14
+pydub>=0.25.1
+webrtcvad>=2.0.10
+
+# UI Framework
+PySide6>=6.6.0
+PyQt6>=6.6.0
+
+# OCR
+easyocr>=1.7.0
+pytesseract>=0.3.10
+
+# Utilities
+numpy>=1.24.0
+scipy>=1.11.0
+pyyaml>=6.0
+tqdm>=4.66.0
+colorlog>=6.8.0
+
+# Performance Monitoring
+psutil>=5.9.0
+py3nvml>=0.2.7
+
+# Windows Audio (WASAPI)
+pywin32>=306
+comtypes>=1.4.0

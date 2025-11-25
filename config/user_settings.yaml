@@ -1,0 +1,4 @@
+audio:
+  device_index: 18
+  device_name: DP (NVIDIA High Definition Audio) [Loopback]
+  input_mode: loopback

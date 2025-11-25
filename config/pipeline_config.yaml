@@ -1,0 +1,118 @@
+# Pipeline Configuration for Low-Latency Voice Translation
+
+# Pipeline Architecture
+pipeline:
+  # Pipeline mode: "audio_only", "ocr_only", "dual"
+  mode: "audio_only"
+  
+  # Enable/disable components
+  components:
+    asr: true
+    translation: true
+    tts: true
+    ocr: false
+    overlay: true
+
+# Multiprocessing Settings
+multiprocessing:
+  # Start method: "spawn", "fork", "forkserver"
+  start_method: "spawn"  # Windows requires spawn
+  
+  # Process priorities (0-2: low, normal, high)
+  priorities:
+    audio_capture: 2  # High priority
+    asr: 2
+    translation: 1
+    tts: 1
+    playback: 2  # High priority
+    ocr: 0
+    overlay: 0
+
+# Latency Optimization
+latency:
+  # Target total latency (seconds)
+  target_total: 1.5
+  
+  # Component latency budgets (ms)
+  budgets:
+    audio_capture: 100
+    asr: 300
+    translation: 200
+    tts: 500
+    playback: 100
+    overhead: 300
+    
+  # Streaming settings
+  streaming:
+    enabled: true  # Stream partial results
+    min_chunk_words: 3  # Minimum words before streaming
+
+# Logging Settings
+logging:
+  # Log level: DEBUG, INFO, WARNING, ERROR
+  level: "INFO"
+  
+  # Log to file
+  file:
+    enabled: true
+    path: "logs/voicetrans.log"
+    max_size_mb: 10
+    backup_count: 5
+    
+  # Log to console
+  console:
+    enabled: true
+    colored: true
+    
+  # Performance logging
+  performance:
+    enabled: true
+    log_latency: true
+    log_gpu_usage: true
+
+# UI Settings
+ui:
+  # Overlay settings
+  overlay:
+    enabled: true
+    
+    # Window properties
+    always_on_top: true
+    transparent_background: true
+    opacity: 0.9
+    
+    # Position (x, y) - null = center
+    position: null
+    
+    # Size (width, height)
+    size: [800, 200]
+    
+    # Font settings
+    font:
+      family: "Arial"
+      size: 16
+      color: "#FFFFFF"
+      background: "#000000"
+      
+    # Display duration (seconds)
+    display_duration: 5.0
+    
+    # Animation
+    fade_in: true
+    fade_out: true
+
+# Debug Settings
+debug:
+  # Enable debug mode
+  enabled: false
+  
+  # Save intermediate outputs
+  save_audio: false
+  save_text: false
+  
+  # Profiling
+  profile: false
+  profile_output: "logs/profile.txt"
+  
+  # Visualization
+  show_pipeline_graph: false

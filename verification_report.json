@@ -1,0 +1,55 @@
+{
+  "PyTorch": {
+    "installed": true,
+    "version": "2.5.1+cu121"
+  },
+  "TensorRT": {
+    "installed": true,
+    "version": "10.14.1.48.post1"
+  },
+  "Transformers": {
+    "installed": true,
+    "version": "4.57.1"
+  },
+  "SoundDevice": {
+    "installed": true,
+    "version": "0.5.3"
+  },
+  "PySide6": {
+    "installed": true,
+    "version": "6.10.1"
+  },
+  "NumPy": {
+    "installed": true,
+    "version": "2.2.6"
+  },
+  "SciPy": {
+    "installed": true,
+    "version": "1.15.3"
+  },
+  "PyYAML": {
+    "installed": true,
+    "version": "6.0.3"
+  },
+  "GPU": {
+    "available": true,
+    "name": "NVIDIA GeForce RTX 3060",
+    "cuda_version": "12.1",
+    "memory_gb": 11.99951171875
+  },
+  "ASR": {
+    "engine": "faster-whisper",
+    "status": "OK"
+  },
+  "Translation": {
+    "engine": "MarianMT",
+    "status": "OK"
+  },
+  "TTS": {
+    "engine": "edge-tts",
+    "status": "OK"
+  },
+  "Audio": {
+    "status": "OK"
+  }
+}

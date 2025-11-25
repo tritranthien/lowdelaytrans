@@ -1,0 +1,87 @@
+asr:
+  cache_dir: models/cache
+  engine: faster-whisper
+  model_dir: models/asr
+  whisper:
+    beam_size: 1
+    compute_type: float16
+    device: cuda
+    language: auto
+    model_size: medium
+  
+  # NeMo settings
+  nemo:
+    model_name: stt_en_jasper10x5dr
+    device: cuda
+ocr:
+  capture_region: null
+  easyocr:
+    gpu: true
+    languages:
+    - en
+    - ja
+  enabled: false
+  engine: easyocr
+  fps: 2
+  model_dir: models/ocr
+performance:
+  batch:
+    enabled: false
+    max_size: 1
+  gpu_device: 0
+  num_workers:
+    asr: 1
+    ocr: 1
+    translation: 1
+    tts: 1
+  queue_sizes:
+    asr_output: 5
+    audio_input: 10
+    translation_output: 5
+    tts_output: 10
+tensorrt:
+  enabled: true
+  engine_dir: models/tensorrt
+  optimize:
+    asr: false
+    translation: true
+    tts: false
+  precision: fp16
+  workspace_size: 4096
+translation:
+  cache_dir: models/cache
+  engine: google  # Using Google Translate for best quality
+  
+  # NLLB settings (backup - has stability issues)
+  nllb:
+    model_name: facebook/nllb-200-distilled-600M
+    device: cuda
+    max_length: 512
+    num_beams: 3
+    src_lang: eng_Latn
+    tgt_lang: vie_Latn
+  
+  # MarianMT settings (optimized for better quality)
+  marian:
+    device: cuda
+    max_length: 200  # Increased from 512 for faster processing
+    model_name: Helsinki-NLP/opus-mt-en-vi
+    num_beams: 3  # Increased from 1 for better quality
+    
+  model_dir: models/translation
+  source_lang: en
+  target_lang: vi
+tts:
+  cache_dir: models/cache
+  coqui:
+    device: cuda
+    model_name: tts_models/vi/cv/vits
+  edge:
+    rate: +0%
+    voice: vi-VN-HoaiMyNeural
+    volume: +0%
+  engine: edge
+  model_dir: models/tts
+  piper:
+    model_path: models/tts/piper
+    voice: vi-VN-hfc-female

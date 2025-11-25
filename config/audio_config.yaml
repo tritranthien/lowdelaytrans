@@ -1,0 +1,41 @@
+# Audio Configuration for Low-Latency Voice Translation
+
+# Audio Capture Settings
+audio:
+  # Sample rate (Hz) - higher = better quality but more processing
+  sample_rate: 16000  # Optimal for speech recognition
+  
+  # Chunk size (samples) - smaller = lower latency but more overhead
+  chunk_size: 1024  # ~64ms at 16kHz
+  
+  # Audio format
+  channels: 1  # Mono for speech
+  dtype: "float32"
+  
+  # WASAPI Loopback settings
+  wasapi:
+    enabled: true
+    device_name: "auto"  # Auto-detect default output device
+    exclusive_mode: false
+    
+  # Voice Activity Detection (VAD)
+  vad:
+    enabled: true
+    aggressiveness: 3  # 0-3, higher = more aggressive filtering
+    frame_duration_ms: 30  # 10, 20, or 30 ms
+    
+  # Audio buffer settings
+  buffer:
+    max_queue_size: 10  # Maximum audio chunks in queue
+    timeout_ms: 100  # Queue timeout
+
+# Audio Playback Settings  
+playback:
+  # Output device
+  device: "default"
+  
+  # Buffer size for low latency
+  buffer_size: 512  # Smaller = lower latency
+  
+  # Volume control
+  volume: 1.0  # 0.0 to 1.0

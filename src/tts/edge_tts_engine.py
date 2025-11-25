@@ -37,11 +37,23 @@ class EdgeTTSProcess(ProcessBase):
 
     def loop(self):
         try:
-            # Get text to synthesize
-            text = self.input_queue.get(timeout=0.1)
+            # Get input (can be string or dict with speaker_id)
+            input_data = self.input_queue.get(timeout=0.1)
+            
+            # Handle both string and dict input
+            if isinstance(input_data, dict):
+                text = input_data.get("text", "")
+                speaker_id = input_data.get("speaker_id")
+            else:
+                text = input_data
+                speaker_id = None
             
             if not text:
                 return
+
+            # Log with speaker info if available
+            speaker_label = f" [Speaker {speaker_id}]" if speaker_id else ""
+            self.logger.debug(f"TTS{speaker_label}: {text[:50]}...")
 
             # Run async synthesis
             self.async_loop.run_until_complete(self._synthesize(text))

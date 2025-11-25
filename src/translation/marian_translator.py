@@ -1,82 +1,125 @@
 import time
 import torch
 from transformers import MarianMTModel, MarianTokenizer
-from src.utils.pipeline import ProcessBase, QueueManager
+from src.translation.context_translator import ContextTranslator
 from src.utils.config import get_config
-import queue
 
-class MarianTranslatorProcess(ProcessBase):
+
+class MarianTranslatorProcess(ContextTranslator):
+    """MarianMT Translator with Context Awareness"""
+    
     def __init__(self):
+        super().__init__("MarianMT Translation")
+        
         config = get_config("translation")
-        super().__init__("Translation", config)
-        
         self.model_name = config.get("marian.model_name", "Helsinki-NLP/opus-mt-en-vi")
-        self.device = config.get("marian.device", "cuda")
+        self.device = config.get("marian.device", "cuda" if torch.cuda.is_available() else "cpu")
         self.max_length = config.get("marian.max_length", 200)
-        self.num_beams = config.get("marian.num_beams", 3)  # Use beam search for better quality
+        self.num_beams = config.get("marian.num_beams", 1)  # Use 1 for speed
         
-        # Queues
-        self.input_queue = QueueManager.get_queue("asr_output")
-        
-        # Create output queues
-        self.tts_queue = QueueManager.create_queue("tts_input", maxsize=50)
-        self.ui_queue = QueueManager.create_queue("ui_input", maxsize=50)
-        
-        self.register_input_queue("asr_output", self.input_queue)
-        self.register_output_queue("tts_input", self.tts_queue)
-        self.register_output_queue("ui_input", self.ui_queue)
+        # Optimization settings
+        opt_config = config.get("optimization", {})
+        self.use_fp16 = opt_config.get("use_fp16", True)
+        self.compile_model = opt_config.get("compile_model", False)  # PyTorch 2.0+
+        self.batch_size = opt_config.get("batch_size", 1)
 
     def setup(self):
+        """Initialize MarianMT model with optimizations"""
         self.logger.info(f"Loading MarianMT model: {self.model_name} on {self.device}")
         try:
+            # Load tokenizer
             self.tokenizer = MarianTokenizer.from_pretrained(self.model_name)
-            # Force use_safetensors=True to avoid PyTorch pickle security issues
-            self.model = MarianMTModel.from_pretrained(
-                self.model_name,
-                use_safetensors=True
-            ).to(self.device)
-            self.logger.info("MarianMT model loaded successfully")
+            
+            # Load model with optimizations
+            self.logger.info("Loading model...")
+            self.model = MarianMTModel.from_pretrained(self.model_name)
+            
+            # Move to device
+            self.model = self.model.to(self.device)
+            
+            # Set to eval mode
+            self.model.eval()
+            
+            # Apply FP16 optimization if enabled and on CUDA
+            if self.use_fp16 and self.device == "cuda":
+                self.logger.info("Applying FP16 optimization...")
+                self.model = self.model.half()
+            
+            # Compile model for faster inference (PyTorch 2.0+)
+            if self.compile_model:
+                try:
+                    self.logger.info("Compiling model with torch.compile()...")
+                    self.model = torch.compile(self.model)
+                except Exception as e:
+                    self.logger.warning(f"torch.compile() failed (requires PyTorch 2.0+): {e}")
+            
+            # Test translation
+            test_text = "Hello, how are you?"
+            test_result = self._translate_text(test_text)
+            self.logger.info(f"MarianMT initialized successfully. Test: '{test_text}' -> '{test_result}'")
+            
         except Exception as e:
             self.logger.error(f"Failed to load MarianMT model: {e}")
-            # Try falling back to original loading if safetensors fails
-            try:
-                self.logger.info("Retrying with default loading...")
-                self.model = MarianMTModel.from_pretrained(self.model_name).to(self.device)
-            except Exception as e2:
-                self.logger.error(f"Retry failed: {e2}")
-                self.stop()
-
-    def loop(self):
-        try:
-            # Get text from ASR
-            text = self.input_queue.get(timeout=0.1)
-            
-            if not text or len(text.strip()) == 0:
-                return
-
-            start_time = time.time()
-            
-            # Simple direct translation
-            inputs = self.tokenizer(text, return_tensors="pt", padding=True, truncation=True, max_length=512).to(self.device)
-            with torch.no_grad():
-                outputs = self.model.generate(
-                    **inputs,
-                    max_length=self.max_length,
-                    num_beams=self.num_beams,
-                    early_stopping=True
-                )
-            translated = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
-            
-            latency = (time.time() - start_time) * 1000
-            self.logger.info(f"Translation ({latency:.1f}ms): {text} -> {translated}")
-            
-            # Push to output queues
-            self.tts_queue.put(translated)
-            self.ui_queue.put(translated)
-            
-        except queue.Empty:
-            pass
-        except Exception as e:
             import traceback
-            self.logger.error(f"Translation Error: {e}")
             self.logger.error(traceback.format_exc())
+            self.stop()
+            raise
+
+    def _translate_text(self, text: str, context: str = "") -> str:
+        """
+        Translate a single text with optional context
+        
+        Args:
+            text: Text to translate
+            context: Context string from previous translations
+            
+        Returns:
+            Translated text
+        """
+        # Build input with context if available
+        if context and self.context_enabled:
+            # Format: "Context: {context} | Current: {text}"
+            input_text = f"{context} || {text}"
+        else:
+            input_text = text
+        
+        # Tokenize
+        inputs = self.tokenizer(
+            input_text,
+            return_tensors="pt",
+            padding=True,
+            truncation=True,
+            max_length=512
+        ).to(self.device)
+        
+        # Generate translation
+        with torch.no_grad():
+            outputs = self.model.generate(
+                **inputs,
+                max_length=self.max_length,
+                num_beams=self.num_beams,
+                early_stopping=True,
+                do_sample=False  # Deterministic for consistency
+            )
+        
+        # Decode
+        translated = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+        return translated
+
+    def translate_with_context(self, text: str) -> str:
+        """
+        Translate text with context (implements ContextTranslator abstract method)
+        
+        Args:
+            text: Text to translate
+            
+        Returns:
+            Translated text
+        """
+        # Get context from buffer
+        context = self._build_context_string()
+        
+        # Translate
+        translated = self._translate_text(text, context)
+        
+        return translated

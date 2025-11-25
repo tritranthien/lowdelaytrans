@@ -50,23 +50,43 @@ tensorrt:
   workspace_size: 4096
 translation:
   cache_dir: models/cache
-  engine: google  # Using Google Translate for best quality
+  engine: marian  # Changed from google to marian for better speed
   
-  # NLLB settings (backup - has stability issues)
+  # Context settings for context-aware translation
+  context:
+    enabled: true
+    buffer_size: 5  # Number of previous sentences to keep
+    max_context_length: 200  # Maximum characters for context
+    include_source: true  # Include source text in context
+    include_target: true  # Include translated text in context
+  
+  # Caching settings
+  cache:
+    enabled: true
+    max_size: 1000  # Maximum number of cached translations
+    ttl: 3600  # Time to live in seconds (1 hour)
+  
+  # Performance optimization
+  optimization:
+    batch_size: 1  # Can increase if processing multiple sentences
+    use_fp16: true  # Use half precision for faster inference
+    compile_model: false  # PyTorch 2.0 compile (experimental)
+  
+  # NLLB settings (alternative engine)
   nllb:
     model_name: facebook/nllb-200-distilled-600M
     device: cuda
     max_length: 512
-    num_beams: 3
+    num_beams: 1  # Reduced from 3 for speed
     src_lang: eng_Latn
     tgt_lang: vie_Latn
   
-  # MarianMT settings (optimized for better quality)
+  # MarianMT settings (default engine - optimized for speed)
   marian:
     device: cuda
-    max_length: 200  # Increased from 512 for faster processing
+    max_length: 200
     model_name: Helsinki-NLP/opus-mt-en-vi
-    num_beams: 3  # Increased from 1 for better quality
+    num_beams: 1  # Reduced from 3 for speed
     
   model_dir: models/translation
   source_lang: en
@@ -85,3 +105,29 @@ tts:
   piper:
     model_path: models/tts/piper
     voice: vi-VN-hfc-female
+
+speaker_diarization:
+  enabled: true
+  
+  # Resemblyzer settings
+  model_path: models/speaker/pretrained.pt
+  embedding_size: 256
+  
+  # Clustering settings
+  similarity_threshold: 0.75  # Cosine similarity threshold (0-1)
+  min_speaker_duration: 1.0  # Minimum seconds to identify speaker
+  max_speakers: 10  # Maximum number of speakers to track
+  
+  # Auto-segmentation
+  auto_break_on_speaker_change: true
+  
+  # Speaker management
+  speaker_timeout: 300  # Remove inactive speakers after 5 minutes
+
+transcription:
+  enabled: true
+  output_dir: "records"
+  filename_format: "transcript_%Y%m%d_%H%M%S.txt"
+  include_original: true   # Save original text alongside translation
+  merge_segments: true     # Merge same speaker segments
+  speaker_timeout: 5.0     # Seconds to wait before flushing paragraph

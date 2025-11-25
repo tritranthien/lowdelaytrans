@@ -6,9 +6,9 @@ from src.utils.config import Config
 from src.audio.capture import AudioCaptureProcess
 from src.audio.playback import AudioPlaybackProcess
 from src.asr.nemo_asr import NeMoASRProcess
-from src.translation.google_translator import GoogleTranslatorProcess
 from src.tts.edge_tts_engine import EdgeTTSProcess
 from src.ui.overlay import OverlayProcess
+from src.utils.transcript_writer import TranscriptWriterProcess
 
 def main():
     print("Initializing Low-Latency Voice Translation System...")
@@ -27,19 +27,48 @@ def main():
     asr = NeMoASRProcess()
     pm.add_process(asr)
     
-    # 3. Translation (Google Translate)
-    translator = GoogleTranslatorProcess()
+    # 3. Translation (Dynamic engine selection)
+    config = Config()
+    translation_engine = config.get("translation.engine", "marian")
+    
+    try:
+        if translation_engine == "marian":
+            from src.translation.marian_translator import MarianTranslatorProcess
+            translator = MarianTranslatorProcess()
+            print(f"Using MarianMT translation engine")
+        elif translation_engine == "nllb":
+            from src.translation.nllb_translator import NLLBTranslatorProcess
+            translator = NLLBTranslatorProcess()
+            print(f"Using NLLB translation engine")
+        elif translation_engine == "google":
+            from src.translation.google_translator import GoogleTranslatorProcess
+            translator = GoogleTranslatorProcess()
+            print(f"Using Google Translate engine")
+        else:
+            print(f"Unknown translation engine '{translation_engine}', falling back to MarianMT")
+            from src.translation.marian_translator import MarianTranslatorProcess
+            translator = MarianTranslatorProcess()
+    except Exception as e:
+        print(f"Failed to load {translation_engine} translator: {e}")
+        print("Falling back to Google Translate...")
+        from src.translation.google_translator import GoogleTranslatorProcess
+        translator = GoogleTranslatorProcess()
+    
     pm.add_process(translator)
     
     # 4. TTS
     tts = EdgeTTSProcess()
     pm.add_process(tts)
     
-    # 5. Audio Playback
+    # 5. Transcript Writer
+    transcript_writer = TranscriptWriterProcess()
+    pm.add_process(transcript_writer)
+    
+    # 6. Audio Playback
     playback = AudioPlaybackProcess()
     pm.add_process(playback)
     
-    # 6. Overlay UI
+    # 7. Overlay UI
     overlay = OverlayProcess()
     pm.add_process(overlay)
     

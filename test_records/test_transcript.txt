@@ -1,0 +1,11 @@
+Transcript started at 2025-11-25 23:42:18.119576
+==================================================
+
+[23:42:18] [Speaker 1]: Xin chào. Bạn khỏe không?
+                        (Orig: Hello. How are you?)
+[23:42:18] [Speaker 2]: Tôi khỏe, cảm ơn.
+                        (Orig: I'm fine, thanks.)
+[23:42:18] [Speaker 1]: Rất vui được gặp bạn.
+                        (Orig: Nice to meet you.)
+
+Transcript ended at 2025-11-25 23:42:20.567781

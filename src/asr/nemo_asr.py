@@ -3,6 +3,7 @@ import time
 import nemo.collections.asr as nemo_asr
 from src.utils.pipeline import ProcessBase, QueueManager
 from src.utils.config import get_config
+from src.audio.speaker_diarization import SpeakerDiarizer
 import queue
 import torch
 
@@ -20,6 +21,12 @@ class NeMoASRProcess(ProcessBase):
         self.buffer_duration_ms = 0
         self.min_duration_ms = 4000  # 4 seconds - longer for complete sentences
         self.max_duration_ms = 8000  # 8 seconds max
+        
+        # Speaker diarization
+        diarization_config = get_config("speaker_diarization")
+        self.diarization_enabled = diarization_config.get("enabled", True)
+        self.auto_break_on_speaker_change = diarization_config.get("auto_break_on_speaker_change", True)
+        self.current_speaker_id = None
         
         # Queues
         self.input_queue = QueueManager.get_queue("audio_input")
@@ -54,6 +61,21 @@ class NeMoASRProcess(ProcessBase):
             self.model.eval()
             self.logger.info("NeMo ASR model initialization complete")
             
+            # Initialize speaker diarization if enabled
+            if self.diarization_enabled:
+                self.logger.info("Initializing speaker diarization...")
+                diarization_config = get_config("speaker_diarization")
+                self.speaker_diarizer = SpeakerDiarizer(
+                    similarity_threshold=diarization_config.get("similarity_threshold", 0.75),
+                    min_duration=diarization_config.get("min_speaker_duration", 1.0),
+                    max_speakers=diarization_config.get("max_speakers", 10),
+                    speaker_timeout=diarization_config.get("speaker_timeout", 300)
+                )
+                self.logger.info("Speaker diarization initialized")
+            else:
+                self.speaker_diarizer = None
+                self.logger.info("Speaker diarization disabled")
+            
         except Exception as e:
             self.logger.error(f"Failed to load NeMo model: {e}")
             import traceback
@@ -87,6 +109,20 @@ class NeMoASRProcess(ProcessBase):
             
         # Concatenate buffer
         audio_data = np.concatenate(self.audio_buffer)
+        
+        # Identify speaker if diarization enabled
+        speaker_id = None
+        if self.diarization_enabled and self.speaker_diarizer:
+            try:
+                speaker_id = self.speaker_diarizer.identify_speaker(audio_data, sample_rate=16000)
+                
+                # Check if speaker changed and auto-break is enabled
+                if self.auto_break_on_speaker_change and speaker_id != self.current_speaker_id:
+                    if self.current_speaker_id is not None:
+                        self.logger.info(f"Speaker changed: {self.current_speaker_id} -> {speaker_id}")
+                    self.current_speaker_id = speaker_id
+            except Exception as e:
+                self.logger.warning(f"Speaker diarization failed: {e}")
         
         # Clear buffer
         self.audio_buffer = []
@@ -132,8 +168,18 @@ class NeMoASRProcess(ProcessBase):
                 text = text[0]
             
             if text and len(text.strip()) > 0:
-                self.logger.info(f"ASR Output ({latency:.1f}ms): {text}")
-                self.output_queue.put(text.strip())
+                # Create output with speaker info
+                output = {
+                    "text": text.strip(),
+                    "speaker_id": speaker_id,
+                    "timestamp": time.time()
+                }
+                
+                speaker_label = f" [Speaker {speaker_id}]" if speaker_id else ""
+                self.logger.info(f"ASR Output ({latency:.1f}ms){speaker_label}: {text}")
+                
+                # Put output (translation expects dict or string)
+                self.output_queue.put(output)
                 
         except Exception as e:
             self.logger.error(f"NeMo transcription error: {e}")
